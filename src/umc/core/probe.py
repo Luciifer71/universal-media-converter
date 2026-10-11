@@ -19,6 +19,7 @@ def inspect_media(file_path: str) -> dict:
         raise ProbeError(f"File does not exist: {source}")
 
     ffprobe = shutil.which("ffprobe")
+
     if ffprobe is None:
         raise ProbeError("FFprobe was not found. Add FFmpeg to PATH.")
 
@@ -40,9 +41,16 @@ def inspect_media(file_path: str) -> dict:
             text=True,
             check=True,
         )
+
         return json.loads(result.stdout)
 
     except subprocess.CalledProcessError as exc:
-        raise ProbeError(f"Could not inspect media: {exc.stderr.strip()}") from exc
+        details = (exc.stderr or "").strip()
+
+        if not details:
+            details = f"FFprobe exited with code {exc.returncode}"
+
+        raise ProbeError(f"Could not inspect media: {details}") from exc
+
     except (OSError, ValueError) as exc:
         raise ProbeError(f"Media inspection failed: {exc}") from exc
