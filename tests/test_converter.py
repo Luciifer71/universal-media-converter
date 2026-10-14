@@ -142,3 +142,79 @@ def test_ffmpeg_execution_error(tmp_path):
         pytest.raises(ConversionError, match="Unable to execute FFmpeg"),
     ):
         convert_media(str(source), str(destination))
+
+
+@pytest.mark.parametrize(
+    ("preset", "expected_crf"),
+    [
+        ("high", "18"),
+        ("balanced", "23"),
+        ("small", "28"),
+    ],
+)
+def test_conversion_uses_video_preset(tmp_path, preset, expected_crf):
+    source = tmp_path / "input.mov"
+    destination = tmp_path / "output.mp4"
+    source.write_bytes(b"test")
+
+    process = create_mock_process()
+
+    with (
+        patch("umc.core.converter.get_duration", return_value=3.0),
+        patch("umc.core.converter.shutil.which", return_value="ffmpeg"),
+        patch(
+            "umc.core.converter.subprocess.Popen",
+            return_value=process,
+        ) as mock_popen,
+    ):
+        convert_media(str(source), str(destination), preset=preset)
+
+    command = mock_popen.call_args.args[0]
+
+    assert "-crf" in command
+    assert command[command.index("-crf") + 1] == expected_crf
+
+
+def test_conversion_uses_copy_preset(tmp_path):
+    source = tmp_path / "input.mov"
+    destination = tmp_path / "output.mp4"
+    source.write_bytes(b"test")
+
+    process = create_mock_process()
+
+    with (
+        patch("umc.core.converter.get_duration", return_value=3.0),
+        patch("umc.core.converter.shutil.which", return_value="ffmpeg"),
+        patch(
+            "umc.core.converter.subprocess.Popen",
+            return_value=process,
+        ) as mock_popen,
+    ):
+        convert_media(str(source), str(destination), preset="copy")
+
+    command = mock_popen.call_args.args[0]
+
+    assert "-c" in command
+    assert command[command.index("-c") + 1] == "copy"
+    assert "-crf" not in command
+
+
+def test_unsupported_output_format(tmp_path):
+    source = tmp_path / "input.mov"
+    destination = tmp_path / "output.avi"
+    source.write_bytes(b"test")
+
+    with pytest.raises(
+        ConversionError,
+        match="Conversion presets currently support MP4 output only",
+    ):
+        convert_media(str(source), str(destination))
+
+
+def test_unsupported_preset(tmp_path):
+    source = tmp_path / "input.mov"
+    destination = tmp_path / "output.mp4"
+    source.write_bytes(b"test")
+
+    with pytest.raises(ConversionError, match="Unsupported preset"):
+        convert_media(str(source), str(destination), preset="invalid")

@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from umc.core.presets import DEFAULT_PRESET, PresetName, get_preset_options
 from umc.core.probe import ProbeError, inspect_media
 
 
@@ -45,7 +46,11 @@ def show_progress(seconds: float, duration: float | None) -> None:
     print(f"\rConverting: [{bar}] {percentage:5.1f}%", end="", flush=True)
 
 
-def convert_media(input_file: str, output_file: str) -> Path:
+def convert_media(
+    input_file: str,
+    output_file: str,
+    preset: PresetName = DEFAULT_PRESET,
+) -> Path:
     """Convert a media file using FFmpeg."""
 
     source = Path(input_file).expanduser().resolve()
@@ -63,6 +68,11 @@ def convert_media(input_file: str, output_file: str) -> Path:
     if destination.exists():
         raise ConversionError(f"Output file already exists: {destination}")
 
+    if destination.suffix.lower() != ".mp4":
+        raise ConversionError("Conversion presets currently support MP4 output only.")
+
+    if preset not in ("high", "balanced", "small", "copy"):
+        raise ConversionError(f"Unsupported preset: {preset}")
     duration = get_duration(source)
 
     command = [
@@ -77,6 +87,7 @@ def convert_media(input_file: str, output_file: str) -> Path:
         "-n",
         "-i",
         str(source),
+        *get_preset_options(preset),
         str(destination),
     ]
 

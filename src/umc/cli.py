@@ -5,10 +5,13 @@ import sys
 
 from umc import __version__
 from umc.core.converter import ConversionError, convert_media
+from umc.core.presets import DEFAULT_PRESET, VIDEO_PRESETS
 from umc.core.probe import ProbeError, inspect_media
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the command-line argument parser."""
+
     parser = argparse.ArgumentParser(
         prog="umc",
         description="Universal Media Converter - convert video, audio and images.",
@@ -25,6 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
         title="commands",
     )
 
+    # Convert command
     convert_parser = subparsers.add_parser(
         "convert",
         help="Convert a media file.",
@@ -40,6 +44,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to the output media file.",
     )
 
+    convert_parser.add_argument(
+        "--preset",
+        choices=[*VIDEO_PRESETS, "copy"],
+        default=DEFAULT_PRESET,
+        help="Conversion preset (default: balanced).",
+    )
+
+    # Info command
     info_parser = subparsers.add_parser(
         "info",
         help="Display information about a media file.",
@@ -54,21 +66,30 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """Run the Universal Media Converter CLI."""
+
     parser = build_parser()
     args = parser.parse_args()
 
     if args.command == "convert":
         try:
-            output = convert_media(args.input, args.output)
+            output = convert_media(
+                args.input,
+                args.output,
+                preset=args.preset,
+            )
+
         except ConversionError as exc:
             print(f"Error: {exc}", file=sys.stderr)
             return 1
 
         print(f"Conversion completed: {output}")
         return 0
+
     if args.command == "info":
         try:
             metadata = inspect_media(args.file)
+
         except ProbeError as exc:
             print(f"Error: {exc}", file=sys.stderr)
             return 1
@@ -80,10 +101,12 @@ def main() -> int:
         print(f"Format: {format_info.get('format_long_name', 'Unknown')}")
 
         duration = format_info.get("duration")
+
         if duration is not None:
             print(f"Duration: {float(duration):.2f} seconds")
 
         size = format_info.get("size")
+
         if size is not None:
             print(f"Size: {int(size) / (1024 * 1024):.2f} MB")
 
@@ -101,6 +124,7 @@ def main() -> int:
                     print(f"Resolution: {width}x{height}")
 
         return 0
+
     parser.print_help()
     return 0
 
