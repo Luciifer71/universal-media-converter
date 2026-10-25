@@ -199,6 +199,15 @@ def test_conversion_uses_copy_preset(tmp_path):
     assert "-crf" not in command
 
 
+def test_unsupported_preset(tmp_path):
+    source = tmp_path / "input.mov"
+    destination = tmp_path / "output.mp4"
+    source.write_bytes(b"test")
+
+    with pytest.raises(ConversionError, match="Unsupported preset"):
+        convert_media(str(source), str(destination), preset="invalid")
+
+
 def test_unsupported_output_format(tmp_path):
     source = tmp_path / "input.mov"
     destination = tmp_path / "output.avi"
@@ -209,12 +218,3 @@ def test_unsupported_output_format(tmp_path):
         match="Conversion presets currently support MP4 output only",
     ):
         convert_media(str(source), str(destination))
-
-
-def test_unsupported_preset(tmp_path):
-    source = tmp_path / "input.mov"
-    destination = tmp_path / "output.mp4"
-    source.write_bytes(b"test")
-
-    with pytest.raises(ConversionError, match="Unsupported preset"):
-        convert_media(str(source), str(destination), preset="invalid")

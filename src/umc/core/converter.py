@@ -73,6 +73,7 @@ def convert_media(
 
     if preset not in ("high", "balanced", "small", "copy"):
         raise ConversionError(f"Unsupported preset: {preset}")
+
     duration = get_duration(source)
 
     command = [
