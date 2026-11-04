@@ -19,3 +19,6 @@ Early development (v0.1.0-dev).
 
 ## Development
 This repository is currently in its initial development phase.
+
+## Development checks
+Run `python -m ruff check src tests` and `python -m pytest -q` before committing changes.
