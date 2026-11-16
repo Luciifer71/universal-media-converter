@@ -1,9 +1,10 @@
-﻿# Contributing to Universal Media Converter
+# Contributing to Universal Media Converter
 
 Thank you for your interest in contributing to Universal Media Converter (UMC)!
 
 ## Getting Started
 
+0. Install Python 3.10+ and FFmpeg (see the README for each operating system).
 1. Fork the repository.
 2. Clone your fork.
 3. Create and activate a Python virtual environment.
