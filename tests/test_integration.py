@@ -17,26 +17,46 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def ffmpeg(*args):
-    subprocess.run(
-        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *map(str, args)],
+TIMEOUT = 120  # seconds; turns a hang into a clear failure
+
+
+def run(command):
+    return subprocess.run(
+        [str(part) for part in command],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
         check=True,
+        timeout=TIMEOUT,
     )
+
+
+def ffmpeg(*args):
+    run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-y", *args])
 
 
 def decoded_md5(path, stream):
     """MD5 of the decoded audio/video, to prove two files hold identical content."""
-    result = subprocess.run(
-        ["ffmpeg", "-loglevel", "error", "-i", str(path), "-map", f"0:{stream}", "-f", "md5", "-"],
-        capture_output=True,
-        text=True,
-        check=True,
+    result = run(
+        [
+            "ffmpeg",
+            "-nostdin",
+            "-loglevel",
+            "error",
+            "-i",
+            path,
+            "-map",
+            f"0:{stream}",
+            "-f",
+            "md5",
+            "-",
+        ]
     )
     return result.stdout.strip()
 
 
 def streams(path):
-    result = subprocess.run(
+    result = run(
         [
             "ffprobe",
             "-v",
@@ -45,11 +65,8 @@ def streams(path):
             "stream=codec_type",
             "-of",
             "csv=p=0",
-            str(path),
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
+            path,
+        ]
     )
     return result.stdout.split()
 
@@ -135,11 +152,20 @@ def test_png_to_webp_is_pixel_identical(media, tmp_path):
     assert main(["convert", str(media / "logo.png"), str(output)]) == 0
 
     def pixels(path):
-        return subprocess.run(
-            ["ffmpeg", "-loglevel", "error", "-i", str(path), "-pix_fmt", "rgba", "-f", "md5", "-"],
-            capture_output=True,
-            text=True,
-            check=True,
+        return run(
+            [
+                "ffmpeg",
+                "-nostdin",
+                "-loglevel",
+                "error",
+                "-i",
+                path,
+                "-pix_fmt",
+                "rgba",
+                "-f",
+                "md5",
+                "-",
+            ]
         ).stdout
 
     assert pixels(output) == pixels(media / "logo.png")

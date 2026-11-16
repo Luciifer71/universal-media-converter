@@ -74,3 +74,31 @@ def test_invalid_json(tmp_path):
         pytest.raises(ProbeError, match="Media inspection failed"),
     ):
         inspect_media(str(source))
+
+
+def test_ffprobe_timeout(tmp_path):
+    source = tmp_path / "video.mp4"
+    source.write_bytes(b"test")
+
+    with (
+        patch("umc.core.probe.shutil.which", return_value="ffprobe"),
+        patch(
+            "umc.core.probe.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(["ffprobe"], 120),
+        ),
+        pytest.raises(ProbeError, match="did not respond"),
+    ):
+        inspect_media(str(source))
+
+
+def test_ffprobe_never_reads_keyboard_input(tmp_path):
+    source = tmp_path / "video.mp4"
+    source.write_bytes(b"test")
+
+    with (
+        patch("umc.core.probe.shutil.which", return_value="ffprobe"),
+        patch("umc.core.probe.subprocess.run", return_value=Mock(stdout="{}")) as mock_run,
+    ):
+        inspect_media(str(source))
+
+    assert mock_run.call_args.kwargs["stdin"] == subprocess.DEVNULL

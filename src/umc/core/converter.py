@@ -190,6 +190,8 @@ def run_ffmpeg(command: list[str], temporary: Path, duration: float | None, show
         with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as error_log:
             with subprocess.Popen(
                 command,
+                # Never connect FFmpeg to the keyboard: it could wait for input.
+                stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=error_log,
                 text=True,

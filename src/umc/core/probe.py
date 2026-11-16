@@ -14,6 +14,10 @@ FFMPEG_INSTALL_HINT = (
 )
 
 
+# Reading metadata normally takes well under a second; this only stops a hang.
+PROBE_TIMEOUT_SECONDS = 120
+
+
 class ProbeError(Exception):
     """Raised when media inspection fails."""
 
@@ -45,9 +49,13 @@ def inspect_media(file_path: str) -> dict:
     try:
         result = subprocess.run(
             command,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=True,
+            timeout=PROBE_TIMEOUT_SECONDS,
         )
 
         return json.loads(result.stdout)
@@ -59,6 +67,11 @@ def inspect_media(file_path: str) -> dict:
             details = f"FFprobe exited with code {exc.returncode}"
 
         raise ProbeError(f"Could not inspect media: {details}") from exc
+
+    except subprocess.TimeoutExpired as exc:
+        raise ProbeError(
+            f"FFprobe did not respond within {PROBE_TIMEOUT_SECONDS} seconds: {source}"
+        ) from exc
 
     except (OSError, ValueError) as exc:
         raise ProbeError(f"Media inspection failed: {exc}") from exc

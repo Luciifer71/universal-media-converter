@@ -59,6 +59,8 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+# If a test hangs for 2 minutes, print where it is stuck.
+faulthandler_timeout = 120
 
 [tool.ruff]
 line-length = 100

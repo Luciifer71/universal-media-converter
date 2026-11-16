@@ -1,5 +1,6 @@
 """Tests for the media conversion engine."""
 
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -570,3 +571,19 @@ def test_mp4_output_explains_dropped_tracks(tmp_path, capsys):
     run_conversion(tmp_path, "out.mp4", preset="original", metadata=MULTI_TRACK)
 
     assert "Save as .mkv to keep every track" in capsys.readouterr().out
+
+
+def test_ffmpeg_never_reads_keyboard_input(tmp_path):
+    source = tmp_path / "input.mov"
+    source.write_bytes(b"test")
+    popen = fake_ffmpeg()
+
+    with (
+        patch("umc.core.converter.read_metadata", return_value=VIDEO_AND_AUDIO),
+        patch("umc.core.converter.shutil.which", return_value="ffmpeg"),
+        patch("umc.core.converter.subprocess.Popen", side_effect=popen) as mock_popen,
+    ):
+        convert_media(str(source), str(tmp_path / "out.mp4"))
+
+    assert mock_popen.call_args.kwargs["stdin"] == subprocess.DEVNULL
+    assert "-nostdin" in popen.calls[0]
