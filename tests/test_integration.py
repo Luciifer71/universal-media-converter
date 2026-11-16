@@ -73,11 +73,13 @@ def streams(path):
 
 @pytest.fixture(scope="module")
 def media(tmp_path_factory):
+    # Every generated input has a fixed duration plus "-t". Avoid "-shortest":
+    # combined with a subtitle input it hung on the macOS CI runner's FFmpeg.
     folder = tmp_path_factory.mktemp("media")
     ffmpeg(
         "-f", "lavfi", "-i", "testsrc2=duration=3:size=320x240:rate=25",
         "-f", "lavfi", "-i", "sine=frequency=440:duration=3",
-        "-c:v", "libx264", "-c:a", "aac", "-shortest", folder / "clip.mov",
+        "-c:v", "libx264", "-c:a", "aac", "-t", "3", folder / "clip.mov",
     )  # fmt: skip
     ffmpeg(
         "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
@@ -94,7 +96,7 @@ def media(tmp_path_factory):
         "-f", "lavfi", "-i", "sine=frequency=880:duration=2",
         "-i", folder / "subs.srt",
         "-map", "0", "-map", "1", "-map", "2", "-map", "3",
-        "-c:v", "libx264", "-c:a", "aac", "-c:s", "mov_text", "-shortest",
+        "-c:v", "libx264", "-c:a", "aac", "-c:s", "mov_text", "-t", "2",
         folder / "two_languages.mp4",
     )  # fmt: skip
     return folder
