@@ -1,10 +1,10 @@
-﻿# Universal Media Converter (UMC)
+# Universal Media Converter (UMC)
 
 A simple, open-source command-line media converter for **Windows, macOS and Linux**.
 
 Convert video, audio and images with one short command. There are no codecs,
 bitrates or FFmpeg options to learn: name the file you want, and UMC picks
-sensible settings for you.
+the settings for you. **By default it keeps the original quality.**
 
 ```bash
 umc convert holiday.mov holiday.mp4
@@ -17,8 +17,11 @@ umc convert holiday.mov holiday.mp4
 
 - **Video:** convert to MP4, MKV, MOV or WebM.
 - **Audio:** convert to MP3, WAV, FLAC, AAC, M4A, OGG or Opus, or extract the soundtrack from a video.
-- **Images:** convert between JPG, PNG, WebP and BMP, or save a video's first frame as a picture.
-- **Quality presets:** `high`, `balanced` (default), `small` and `copy`.
+- **Images:** convert between JPG, PNG, WebP and BMP, or save any moment of a video as a picture.
+- **Original quality by default:** copies audio/video untouched whenever possible,
+  otherwise uses lossless or maximum-quality settings. Every conversion tells you
+  exactly what happened to the quality.
+- **Smaller-file presets** when you want them: `high`, `balanced` and `small`.
 - **Batch conversion:** convert a whole folder with one command.
 - **Safe by default:** never overwrites a file unless you ask, and never leaves
   half-written files behind when a conversion fails or you press Ctrl+C.
@@ -90,6 +93,7 @@ umc convert song.wav song.mp3           # audio -> MP3
 umc convert song.flac song.m4a          # audio -> M4A (AAC), good for Apple devices
 umc convert video.mp4 soundtrack.mp3    # extract the audio from a video
 umc convert video.mp4 thumbnail.jpg     # save the first frame as an image
+umc convert video.mp4 thumb.png --at 1:30  # save the frame at 1 min 30 s
 umc convert photo.png photo.webp        # image -> WebP
 umc convert album.mp3 cover.jpg         # extract embedded album art
 ```
@@ -107,20 +111,52 @@ umc convert photo.png jpg     # creates photo.jpg
 If the output would have the same name as the input (for example `video.mp4` to `mp4`),
 UMC creates `video-converted.mp4` instead. It never overwrites your original.
 
-### Choose quality with presets
+### Quality: original by default
+
+By default UMC keeps the quality of your original file. After each conversion it
+prints a `Quality:` line so you always know what happened:
+
+```text
+Quality: identical to the original (copied without re-encoding)
+```
+
+How it works:
+
+1. **Copy when possible (zero loss, very fast).** If the new format can hold the
+   original audio/video as they are, UMC copies them without re-encoding. For
+   example: phone videos (MOV) to MP4 or MKV, including iPhone HDR/HEVC video;
+   the AAC soundtrack of a video to M4A; MP3 album art to JPG.
+2. **Lossless when the format allows it.** FLAC, WAV, PNG, BMP and WebP are saved
+   with no loss at all. M4A from a lossless source (WAV, FLAC) uses Apple Lossless.
+   WAV keeps 24-bit audio as 24-bit.
+3. **Maximum quality otherwise.** Some formats always compress (JPG, MP3, AAC,
+   OGG, Opus), and some conversions must re-encode the video (for example
+   WebM to MP4). UMC then uses settings where the difference is not visible or
+   audible: H.264 at CRF 16, MP3 at 320 kbps, AAC at 256-320 kbps, JPG at maximum
+   quality. It prints a note suggesting a lossless format if you need one.
+4. **Automatic fallback.** If a direct copy fails on an unusual file, UMC
+   re-encodes at maximum quality instead of giving up.
+
+Things that can't be kept, and UMC tells you when they happen:
+
+- Saving 10-bit/HDR video as WebM converts it to standard colour. Use MP4, MOV or MKV to keep HDR.
+- JPG cannot store transparency. Use PNG or WebP.
+
+### Smaller files with presets
 
 ```bash
 umc convert input.mov output.mp4 --preset high
+umc convert input.mov output.mp4 --preset balanced
 umc convert input.mov output.mp4 --preset small
-umc convert input.mov output.mp4 --preset copy
 ```
 
 | Preset     | What it does |
 |------------|--------------|
-| `high`     | Best quality, larger files, slower. |
-| `balanced` | Good quality and reasonable size. **This is the default.** |
+| `original` | **The default.** Keeps the original quality (see above). |
+| `high`     | Very high quality, smaller than the original. |
+| `balanced` | Good quality and much smaller files. |
 | `small`    | Smallest files, lower quality, faster. |
-| `copy`     | Video only. Changes the container without re-encoding. Very fast and lossless, but only works when the original streams suit the new format (for example MOV to MP4 from most phones). |
+| `copy`     | Video only. Changes the container without re-encoding, and fails if the streams don't fit. `original` does this automatically, so you rarely need it. |
 
 What the presets mean for each format:
 
@@ -135,6 +171,20 @@ What the presets mean for each format:
 | JPG | very high | high | medium |
 | WebP | quality 95 | quality 80 | quality 60 |
 | WAV, FLAC, PNG, BMP | lossless; presets make no difference | | |
+
+### Save a picture from a video
+
+```bash
+umc convert video.mp4 thumbnail.jpg              # first frame
+umc convert video.mp4 thumbnail.jpg --at 5       # at 5 seconds
+umc convert video.mp4 thumbnail.png --at 1:30    # at 1 min 30 s, lossless PNG
+umc convert movie.mkv poster.jpg --at 1:02:03.5  # at 1 h 2 min 3.5 s
+umc batch ./videos --to jpg --at 10              # a picture from every video
+```
+
+`--at` accepts seconds (`90`, `90.5`), `minutes:seconds` (`1:30`) or
+`hours:minutes:seconds` (`1:02:03`). If the time is past the end of the video,
+UMC tells you how long the video is. With still pictures and album art, `--at` is ignored.
 
 ### Make a video smaller
 
@@ -220,7 +270,8 @@ FLV, M4V, 3GP, MTS, MPG, WMA, AIFF, GIF and TIFF.
 | `FFmpeg was not found` | Install FFmpeg (see above), then open a **new** terminal. |
 | `umc` is not recognised | Use `python -m umc` (Windows: `py -m umc`), or add Python's Scripts folder to PATH. |
 | `Output file already exists` | Add `--overwrite`, or choose another name. |
-| `copy` preset fails | The original streams don't fit the new container. Use `balanced` instead. |
+| `copy` preset fails | The original streams don't fit the new container. Leave out `--preset`; the default `original` handles this automatically. |
+| `--at ... is past the end` | Pick an earlier time. `umc info FILE` shows the duration. |
 | `has no video` / `has no audio` | The input doesn't contain what the output needs (for example converting an MP3 to MP4). |
 
 ## Development
@@ -260,7 +311,9 @@ Project layout:
 ```text
 src/umc/cli.py            command-line interface
 src/umc/core/converter.py FFmpeg conversion engine
-src/umc/core/presets.py   quality presets for every format
+src/umc/core/original.py  the default "keep original quality" planner
+src/umc/core/presets.py   high/balanced/small/copy presets
+src/umc/core/timecode.py  reading times such as 1:30 for --at
 src/umc/core/formats.py   supported formats
 src/umc/core/batch.py     output naming and folder scanning
 src/umc/core/probe.py     media inspection with FFprobe
