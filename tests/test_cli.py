@@ -13,10 +13,10 @@ def test_convert_default_preset():
     parser = build_parser()
     args = parser.parse_args(["convert", "input.mov", "output.mp4"])
 
-    assert args.preset == "balanced"
+    assert args.preset == "original"
 
 
-@pytest.mark.parametrize("preset", ["high", "balanced", "small", "copy"])
+@pytest.mark.parametrize("preset", ["original", "high", "balanced", "small", "copy"])
 def test_convert_accepts_presets(preset):
     parser = build_parser()
     args = parser.parse_args(["convert", "input.mov", "output.mp4", "--preset", preset])
@@ -52,6 +52,7 @@ def test_cli_passes_preset_to_converter(capsys):
         "output.mp4",
         preset="high",
         overwrite=False,
+        at=None,
     )
 
     captured = capsys.readouterr()
@@ -217,3 +218,29 @@ def test_batch_skips_incompatible_files(tmp_path, capsys):
 
     assert result == 0
     assert "1 converted, 1 skipped, 0 failed" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(("value", "seconds"), [("5", 5.0), ("1:30", 90.0), ("1:02:03", 3723.0)])
+def test_convert_at_option(value, seconds):
+    args = build_parser().parse_args(["convert", "v.mp4", "t.jpg", "--at", value])
+
+    assert args.at == seconds
+
+
+def test_convert_rejects_bad_at():
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["convert", "v.mp4", "t.jpg", "--at", "soon"])
+
+
+def test_batch_at_requires_image_format(tmp_path, capsys):
+    assert main(["batch", str(tmp_path), "--to", "mp4", "--at", "5"]) == 1
+    assert "--at only works" in capsys.readouterr().err
+
+
+def test_batch_passes_at(tmp_path):
+    (tmp_path / "a.mov").write_bytes(b"a")
+
+    with patch("umc.cli.convert_media") as mock_convert:
+        main(["batch", str(tmp_path), "--to", "jpg", "--at", "0:05"])
+
+    assert mock_convert.call_args.kwargs["at"] == 5.0

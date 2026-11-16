@@ -1,19 +1,22 @@
 """Encoding presets for media conversion.
 
-Users only ever pick a preset name (high, balanced, small or copy). This module
-translates that name into the right FFmpeg settings for each output format.
+Users only ever pick a preset name. The default, "original", keeps the source
+quality and is planned in umc.core.original. This module translates the other
+names (high, balanced, small, copy) into FFmpeg settings for each format.
 """
 
 from typing import Literal
 
-PresetName = Literal["high", "balanced", "small", "copy"]
+PresetName = Literal["original", "high", "balanced", "small", "copy"]
 
-PRESET_NAMES: tuple[str, ...] = ("high", "balanced", "small", "copy")
-DEFAULT_PRESET: PresetName = "balanced"
+PRESET_NAMES: tuple[str, ...] = ("original", "high", "balanced", "small", "copy")
+DEFAULT_PRESET: PresetName = "original"
 
 PRESET_DESCRIPTIONS = {
-    "high": "Best quality, larger files, slower.",
-    "balanced": "Good quality and reasonable file size (default).",
+    "original": "Keep the original quality (default). Copies without re-encoding "
+    "when possible, otherwise uses lossless or maximum quality.",
+    "high": "Very high quality, smaller than original.",
+    "balanced": "Good quality and much smaller files.",
     "small": "Smallest files, lower quality, faster.",
     "copy": "No re-encoding. Very fast and lossless, video only; "
     "the input streams must already suit the output format.",
@@ -117,9 +120,16 @@ def get_preset_options(preset: PresetName) -> list[str]:
     ]
 
 
+def reject_original(preset: str) -> None:
+    """The original preset depends on the input file; see umc.core.original."""
+    if preset == "original":
+        raise ValueError("The original preset is planned by umc.core.original.plan_original.")
+
+
 def get_video_options(extension: str, preset: PresetName) -> list[str]:
     """Return FFmpeg arguments for a video output format."""
     validate_preset(preset)
+    reject_original(preset)
 
     if extension == ".webm":
         if preset == "copy":
@@ -133,6 +143,8 @@ def get_video_options(extension: str, preset: PresetName) -> list[str]:
             str(settings["crf"]),
             "-b:v",
             "0",
+            "-row-mt",
+            "1",
             "-pix_fmt",
             "yuv420p",
             "-c:a",
@@ -153,6 +165,7 @@ def get_video_options(extension: str, preset: PresetName) -> list[str]:
 def get_audio_options(extension: str, preset: PresetName) -> list[str]:
     """Return FFmpeg arguments for an audio output format."""
     validate_preset(preset)
+    reject_original(preset)
 
     if preset == "copy":
         raise ValueError(
@@ -167,6 +180,7 @@ def get_audio_options(extension: str, preset: PresetName) -> list[str]:
 def get_image_options(extension: str, preset: PresetName) -> list[str]:
     """Return FFmpeg arguments for a still image output format."""
     validate_preset(preset)
+    reject_original(preset)
 
     if preset == "copy":
         raise ValueError(

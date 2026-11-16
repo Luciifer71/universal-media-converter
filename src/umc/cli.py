@@ -21,18 +21,28 @@ from umc.core.formats import (
 )
 from umc.core.presets import DEFAULT_PRESET, PRESET_DESCRIPTIONS, PRESET_NAMES
 from umc.core.probe import ProbeError, inspect_media
+from umc.core.timecode import format_duration, parse_time
 
 EXAMPLES = """\
 examples:
-  umc convert video.mov video.mp4          convert a video
+  umc convert video.mov video.mp4          convert, keeping the original quality
   umc convert video.mov mp3                extract the audio as video.mp3
-  umc convert song.wav song.mp3 --preset high
+  umc convert song.wav song.flac           lossless audio
   umc convert video.mp4 thumbnail.jpg      save the first frame as an image
+  umc convert video.mp4 thumb.png --at 1:30  save the frame at 1 min 30 s
   umc convert video.mp4 mp4 --preset small shrink a video (video-converted.mp4)
   umc batch ./holiday --to mp4             convert every file in a folder
   umc info video.mp4                       show details about a file
   umc formats                              list supported formats and presets
 """
+
+
+def parse_time_argument(value: str) -> float:
+    """argparse type for --at."""
+    try:
+        return parse_time(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def add_common_options(parser: argparse.ArgumentParser) -> None:
@@ -42,7 +52,15 @@ def add_common_options(parser: argparse.ArgumentParser) -> None:
         "--preset",
         choices=PRESET_NAMES,
         default=DEFAULT_PRESET,
-        help="Quality preset: high, balanced, small or copy (default: balanced).",
+        help="Quality: original (default, no quality loss where possible), high, "
+        "balanced, small or copy. Run 'umc formats' for details.",
+    )
+    parser.add_argument(
+        "--at",
+        type=parse_time_argument,
+        metavar="TIME",
+        help="When saving an image from a video, which moment to capture, "
+        "e.g. 5, 90.5, 1:30 or 1:02:03 (default: the first frame).",
     )
     parser.add_argument(
         "-y",
@@ -156,18 +174,6 @@ def format_size(num_bytes: int) -> str:
     return f"{size:.2f} GB"
 
 
-def format_duration(seconds: float) -> str:
-    """Return a duration like 1:02:03 or 4:05."""
-    total = round(seconds)
-    hours, remainder = divmod(total, 3600)
-    minutes, secs = divmod(remainder, 60)
-
-    if hours:
-        return f"{hours}:{minutes:02d}:{secs:02d}"
-
-    return f"{minutes}:{secs:02d}"
-
-
 def run_convert(args: argparse.Namespace) -> int:
     """Handle `umc convert`."""
     output = args.output
@@ -181,6 +187,7 @@ def run_convert(args: argparse.Namespace) -> int:
             output,
             preset=args.preset,
             overwrite=args.overwrite,
+            at=args.at,
         )
 
     except ConversionError as exc:
@@ -207,6 +214,10 @@ def run_batch(args: argparse.Namespace) -> int:
             f"Error: Unsupported output format: {args.to}. Supported formats: {supported}",
             file=sys.stderr,
         )
+        return 1
+
+    if args.at is not None and extension not in IMAGE_FORMATS:
+        print("Error: --at only works when converting to an image format.", file=sys.stderr)
         return 1
 
     output_dir = Path(args.output_dir).expanduser() if args.output_dir else None
@@ -237,7 +248,13 @@ def run_batch(args: argparse.Namespace) -> int:
             continue
 
         try:
-            convert_media(str(source), str(target), preset=args.preset, overwrite=args.overwrite)
+            convert_media(
+                str(source),
+                str(target),
+                preset=args.preset,
+                overwrite=args.overwrite,
+                at=args.at,
+            )
             converted += 1
 
         except IncompatibleInputError as exc:
