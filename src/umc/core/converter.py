@@ -22,6 +22,14 @@ class ConversionError(Exception):
     """Raised when media conversion fails."""
 
 
+class ConversionCancelled(ConversionError):
+    """Raised when the user stops a conversion with Ctrl+C."""
+
+
+class IncompatibleInputError(ConversionError):
+    """Raised when the input lacks the audio or video needed for the output."""
+
+
 def find_ffmpeg() -> str:
     """Find FFmpeg on the system PATH."""
     executable = shutil.which("ffmpeg")
@@ -69,15 +77,17 @@ def check_input_streams(metadata: dict | None, media_type: str) -> None:
     )
 
     if media_type == "audio" and not has_audio:
-        raise ConversionError("The input file has no audio, so it cannot be converted to audio.")
+        raise IncompatibleInputError(
+            "The input file has no audio, so it cannot be converted to audio."
+        )
 
     if media_type == "image" and not has_picture:
-        raise ConversionError(
+        raise IncompatibleInputError(
             "The input file has no video or picture, so it cannot be converted to an image."
         )
 
     if media_type == "video" and not has_real_video:
-        raise ConversionError(
+        raise IncompatibleInputError(
             "The input file has no video, so it cannot be converted to a video format. "
             "To convert audio, choose an audio format such as .mp3."
         )
@@ -217,7 +227,7 @@ def convert_media(
                     if show_bar:
                         print()
                     temporary.unlink(missing_ok=True)
-                    raise ConversionError("Conversion cancelled.") from None
+                    raise ConversionCancelled("Conversion cancelled.") from None
 
             if show_bar:
                 print()
