@@ -319,6 +319,7 @@ WMA, AIFF, GIF and TIFF.
 | `Output file already exists` | Add `--overwrite`, or choose another name. |
 | `has no video` / `has no audio` | The input doesn't contain what the output needs (e.g. MP3 → MP4). |
 | `--at ... is past the end` | Pick an earlier time. `umc info FILE` shows the length. |
+| `Your FFmpeg cannot create WebP images` | Some FFmpeg builds (for example Homebrew's on macOS) leave out WebP. Use `.png`, or install a full FFmpeg build. For `.ogg`, UMC switches to Opus audio automatically. |
 | `copy` preset fails | Leave out `--preset`. The default handles this automatically. |
 | Anything else | [Open an issue](https://github.com/Luciifer71/universal-media-converter/issues/new/choose) with the command, its output and `umc info` of the file. |
 

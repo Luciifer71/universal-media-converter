@@ -10,6 +10,13 @@ import subprocess
 import pytest
 
 from umc.cli import main
+from umc.core.encoders import available_encoders
+
+
+def has_encoder(name):
+    encoders = available_encoders(shutil.which("ffmpeg") or "ffmpeg")
+    return encoders is None or name in encoders
+
 
 pytestmark = pytest.mark.skipif(
     shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
@@ -141,17 +148,31 @@ def test_small_preset_shrinks_video(media, tmp_path):
 
 
 @pytest.mark.parametrize("extension", ["jpg", "png", "webp", "bmp"])
-def test_thumbnail_at_time(media, tmp_path, extension):
+def test_thumbnail_at_time(media, tmp_path, extension, capsys):
     output = tmp_path / f"thumb.{extension}"
+    result = main(["convert", str(media / "clip.mov"), str(output), "--at", "0:01.5"])
 
-    assert main(["convert", str(media / "clip.mov"), str(output), "--at", "0:01.5"]) == 0
+    if extension == "webp" and not has_encoder("libwebp"):
+        # Some FFmpeg builds (e.g. Homebrew on macOS) cannot write WebP.
+        assert result == 1
+        assert "cannot create WebP images" in capsys.readouterr().err
+        return
+
+    assert result == 0
     assert output.stat().st_size > 0
 
 
-def test_png_to_webp_is_pixel_identical(media, tmp_path):
+def test_png_to_webp_is_pixel_identical(media, tmp_path, capsys):
     output = tmp_path / "logo.webp"
+    result = main(["convert", str(media / "logo.png"), str(output)])
 
-    assert main(["convert", str(media / "logo.png"), str(output)]) == 0
+    if not has_encoder("libwebp"):
+        assert result == 1
+        assert "cannot create WebP images" in capsys.readouterr().err
+        assert not output.exists()
+        return
+
+    assert result == 0
 
     def pixels(path):
         return run(
@@ -171,6 +192,16 @@ def test_png_to_webp_is_pixel_identical(media, tmp_path):
         ).stdout
 
     assert pixels(output) == pixels(media / "logo.png")
+
+
+def test_ogg_works_with_or_without_vorbis(media, tmp_path, capsys):
+    output = tmp_path / "sound.ogg"
+
+    assert main(["convert", str(media / "clip.mov"), str(output)]) == 0
+    assert streams(output) == ["audio"]
+
+    if not has_encoder("libvorbis"):
+        assert "uses Opus audio" in capsys.readouterr().out
 
 
 def test_mkv_keeps_every_track(media, tmp_path):

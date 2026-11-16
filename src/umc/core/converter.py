@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from umc.core.encoders import adapt_to_encoders, available_encoders, missing_encoder_message
 from umc.core.formats import detect_media_type
 from umc.core.original import EncodingPlan, plan_original
 from umc.core.presets import (
@@ -311,9 +312,17 @@ def convert_media(
 
     if media_type == "image":
         notes += image_notes(metadata, extension, at)
+
+    ffmpeg = find_ffmpeg()
+    encoders = available_encoders(ffmpeg)
+    plan = adapt_to_encoders(plan, encoders)
+    problem = missing_encoder_message(plan, encoders, extension)
+
+    if problem:
+        raise ConversionError(problem)
+
     show_bar = media_type != "image"
     temporary = partial_path(destination)
-    ffmpeg = find_ffmpeg()
     seek = ["-ss", f"{at:.3f}"] if at is not None else []
 
     print(f"Input:  {source.name}")

@@ -29,6 +29,13 @@ AUDIO_WITH_COVER = {
 }
 
 
+@pytest.fixture(autouse=True)
+def all_encoders_available():
+    """Unit tests don't depend on which encoders the local FFmpeg has."""
+    with patch("umc.core.converter.available_encoders", return_value=None):
+        yield
+
+
 def create_mock_process(lines=None, return_code=0):
     """Create a simulated FFmpeg process."""
 
@@ -587,3 +594,26 @@ def test_ffmpeg_never_reads_keyboard_input(tmp_path):
 
     assert mock_popen.call_args.kwargs["stdin"] == subprocess.DEVNULL
     assert "-nostdin" in popen.calls[0]
+
+
+def test_missing_encoder_gives_a_clear_error(tmp_path):
+    with (
+        patch(
+            "umc.core.converter.available_encoders",
+            return_value=frozenset({"libx264", "aac", "png"}),
+        ),
+        pytest.raises(ConversionError, match="cannot create WebP images.*Try .png"),
+    ):
+        run_conversion(tmp_path, "out.webp", preset="original", metadata=PNG_IMAGE)
+
+
+def test_ogg_uses_opus_when_vorbis_is_missing(tmp_path, capsys):
+    with patch(
+        "umc.core.converter.available_encoders",
+        return_value=frozenset({"libopus", "aac"}),
+    ):
+        command = run_conversion(tmp_path, "out.ogg", preset="original", metadata=PHONE_VIDEO)
+
+    assert command[command.index("-c:a") + 1] == "libopus"
+    assert "libvorbis" not in command
+    assert "uses Opus audio" in capsys.readouterr().out
