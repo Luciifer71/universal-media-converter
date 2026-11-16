@@ -539,3 +539,34 @@ def test_transparency_warning_for_jpg(tmp_path, capsys):
     run_conversion(tmp_path, "out.jpg", metadata=PNG_IMAGE)
 
     assert "cannot store transparency" in capsys.readouterr().out
+
+
+MULTI_TRACK = {
+    "format": {"format_name": "matroska,webm", "duration": "10.0"},
+    "streams": [
+        {"codec_type": "video", "codec_name": "h264"},
+        {"codec_type": "audio", "codec_name": "aac"},
+        {"codec_type": "audio", "codec_name": "opus"},
+        {"codec_type": "subtitle", "codec_name": "subrip"},
+    ],
+}
+
+
+def test_mkv_output_keeps_all_tracks(tmp_path):
+    command = run_conversion(tmp_path, "out.mkv", preset="original", metadata=MULTI_TRACK)
+
+    assert "0:a?" in command
+    assert "0:s:0" in command
+
+
+def test_mkv_keeps_all_tracks_with_presets_too(tmp_path):
+    command = run_conversion(tmp_path, "out.mkv", preset="small", metadata=MULTI_TRACK)
+
+    assert "0:a?" in command
+    assert command[command.index("-crf") + 1] == "28"
+
+
+def test_mp4_output_explains_dropped_tracks(tmp_path, capsys):
+    run_conversion(tmp_path, "out.mp4", preset="original", metadata=MULTI_TRACK)
+
+    assert "Save as .mkv to keep every track" in capsys.readouterr().out

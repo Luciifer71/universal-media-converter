@@ -18,6 +18,7 @@ from umc.core.presets import (
 )
 from umc.core.probe import FFMPEG_INSTALL_HINT, ProbeError, inspect_media
 from umc.core.timecode import format_duration
+from umc.core.tracks import dropped_tracks_note, keep_all_tracks
 
 
 class ConversionError(Exception):
@@ -296,10 +297,18 @@ def convert_media(
             f"{format_duration(duration)} ({duration:.2f} seconds) long."
         )
 
-    plan = build_plan(media_type, destination.suffix.lower(), preset, metadata, at)
+    extension = destination.suffix.lower()
+    plan = build_plan(media_type, extension, preset, metadata, at)
+
+    if media_type == "video" and extension == ".mkv":
+        plan = keep_all_tracks(plan, metadata)
+    elif media_type == "video":
+        dropped = dropped_tracks_note(metadata, extension)
+        if dropped:
+            notes.append(dropped)
 
     if media_type == "image":
-        notes += image_notes(metadata, destination.suffix.lower(), at)
+        notes += image_notes(metadata, extension, at)
     show_bar = media_type != "image"
     temporary = partial_path(destination)
     ffmpeg = find_ffmpeg()
