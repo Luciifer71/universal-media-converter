@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest a format, option or workflow
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: What should you be able to do?
+      description: Give an example command and the result you expect.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is it useful?
+      description: Who needs it, and how do they manage today?
