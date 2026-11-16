@@ -1,26 +1,33 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "universal-media-converter"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A simple command-line media converter for video, audio and images, powered by FFmpeg."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Proprietary - license pending" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
-    { name = "Luciifer71" }
+    { name = "Krishay Shah" }
 ]
 keywords = ["ffmpeg", "converter", "video", "audio", "image", "cli", "media"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: End Users/Desktop",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: MacOS",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics :: Graphics Conversion",
     "Topic :: Multimedia :: Sound/Audio :: Conversion",
     "Topic :: Multimedia :: Video :: Conversion",
 ]
@@ -28,16 +35,23 @@ dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/Luciifer71/universal-media-converter"
+Documentation = "https://github.com/Luciifer71/universal-media-converter#readme"
 Issues = "https://github.com/Luciifer71/universal-media-converter/issues"
+Changelog = "https://github.com/Luciifer71/universal-media-converter/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
-    "ruff>=0.9"
+    "ruff>=0.9",
+    "build>=1.2",
+    "twine>=6.1",
 ]
 
 [project.scripts]
 umc = "umc.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "umc.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
