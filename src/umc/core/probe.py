@@ -5,6 +5,14 @@ import shutil
 import subprocess
 from pathlib import Path
 
+FFMPEG_INSTALL_HINT = (
+    "Install FFmpeg and make sure it is on your PATH:\n"
+    "  Windows: winget install Gyan.FFmpeg\n"
+    "  macOS:   brew install ffmpeg\n"
+    "  Linux:   sudo apt install ffmpeg  (or your distribution's package manager)\n"
+    "Then open a new terminal and run: ffmpeg -version"
+)
+
 
 class ProbeError(Exception):
     """Raised when media inspection fails."""
@@ -21,7 +29,7 @@ def inspect_media(file_path: str) -> dict:
     ffprobe = shutil.which("ffprobe")
 
     if ffprobe is None:
-        raise ProbeError("FFprobe was not found. Add FFmpeg to PATH.")
+        raise ProbeError(f"FFprobe was not found.\n{FFMPEG_INSTALL_HINT}")
 
     command = [
         ffprobe,
